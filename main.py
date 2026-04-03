@@ -2,6 +2,8 @@ import argparse
 import os
 import zipfile
 import xml.etree.ElementTree as ET
+import struct
+import io
 from pathlib import Path
 
 from stitch import Stitch
@@ -31,50 +33,81 @@ def apply_windows_gradle_wrapper_fix() -> None:
     stitch_patcher.subprocess.check_call = patched_check_call
 
 
-def change_package_name(apk_path: Path, new_package: str) -> None:
+def change_package_name_in_apk(apk_path: Path, new_package: str) -> Path:
     """
-    Modify the package name in AndroidManifest.xml within the APK.
+    Modify the package name in AndroidManifest.xml by creating a modified copy.
+    This must be done BEFORE patching to ensure signature validity.
     
     Args:
-        apk_path: Path to the APK file
+        apk_path: Path to the original APK file
         new_package: New package name (e.g., com.whatsapp.patched)
+    
+    Returns:
+        Path to the modified APK (either original or modified copy)
     """
     if new_package == 'com.whatsapp':
         # Skip if trying to keep original package
-        return
+        return apk_path
     
-    print(f'[+] Changing package name to {new_package}...')
+    print(f'[+] Creating input APK with package name: {new_package}...')
     
     try:
-        # Read APK as ZIP
+        # Read current manifest
         with zipfile.ZipFile(apk_path, 'r') as zip_ref:
             manifest_data = zip_ref.read('AndroidManifest.xml')
         
-        # Register Android namespace
-        ET.register_namespace('android', 'http://schemas.android.com/apk/res/android')
+        # Binary string replacement in manifest
+        original_bytes = b'com.whatsapp'
+        new_bytes = new_package.encode('utf-8')
         
-        # Parse manifest (binary XML, but we'll work with text approximation)
-        # For binary XML in APK, we need a different approach
-        # Use zipfile to modify directly
-        with zipfile.ZipFile(apk_path, 'a') as zip_ref:
-            # Extract, modify, and re-add manifest
-            manifest_content = zip_ref.read('AndroidManifest.xml').decode('utf-8', errors='ignore')
+        # Count occurrences
+        count = manifest_data.count(original_bytes)
+        
+        if count == 0:
+            print(f'[!] Package name "com.whatsapp" not found in manifest - using original APK')
+            return apk_path
+        
+        print(f'[*] Found {count} occurrence(s) of "com.whatsapp" in manifest')
+        
+        # Handle length differences
+        if len(new_bytes) == len(original_bytes):
+            # Same length - simple replacement
+            modified_data = manifest_data.replace(original_bytes, new_bytes)
+        elif len(new_bytes) < len(original_bytes):
+            # Shorter - pad with nulls
+            new_bytes_padded = new_bytes + b'\x00' * (len(original_bytes) - len(new_bytes))
+            modified_data = manifest_data.replace(original_bytes, new_bytes_padded)
+        else:
+            # Longer - not safe, use original
+            print(f'[!] New package name is longer than original - using original APK')
+            return apk_path
+        
+        if modified_data != manifest_data:
+            # Create modified APK copy in temp directory
+            modified_apk = apk_path.parent / 'temp' / f"{apk_path.stem}_modified.apk"
+            modified_apk.parent.mkdir(parents=True, exist_ok=True)
             
-            # Replace package name (simple string replacement for compatibility)
-            modified_manifest = manifest_content.replace(
-                'package="com.whatsapp"',
-                f'package="{new_package}"'
-            )
+            with zipfile.ZipFile(apk_path, 'r') as zip_read:
+                with zipfile.ZipFile(modified_apk, 'w', zipfile.ZIP_DEFLATED) as zip_write:
+                    for item in zip_read.inlist():
+                        data = zip_read.read(item.filename)
+                        if item.filename == 'AndroidManifest.xml':
+                            zip_write.writestr(item, modified_data)
+                        else:
+                            zip_write.writestr(item, data)
             
-            if modified_manifest != manifest_content:
-                # Remove old manifest and add modified one
-                zip_ref.writestr('AndroidManifest.xml', modified_manifest)
-                print(f'[+] Package name changed to {new_package}')
-            else:
-                print(f'[-] Could not change package name (manifest format unsupported)')
+            print(f'[+] Modified APK created: {modified_apk}')
+            return modified_apk
+        else:
+            print(f'[-] Failed to modify package name in binary data')
+            return apk_path
+            
     except Exception as e:
         print(f'[-] Failed to change package name: {e}')
-        print('[-] Continuing with original package name')
+        print('[-] Using original APK instead')
+        import traceback
+        traceback.print_exc()
+        return apk_path
 
 
 def get_args():
@@ -103,6 +136,12 @@ def get_args():
 def main():
     apply_windows_gradle_wrapper_fix()
     args = get_args()
+    
+    # Create modified APK with new package name BEFORE patching (if requested)
+    apk_to_patch = args.apk_path
+    if args.new_package and args.new_package != 'com.whatsapp':
+        apk_to_patch = change_package_name_in_apk(Path(args.apk_path), args.new_package)
+    
     extra_artifacts = {artifact.split(':')[0]: artifact.split(':')[1] for artifact in args.extra_artifacts}
     external_modules = [
         ExternalModule(Path(__file__).parent / './smali_generator',
@@ -119,7 +158,7 @@ def main():
         FirebaseParamsFinder(args),
     ]
     with Stitch(
-            apk_path=args.apk_path,
+            apk_path=str(apk_to_patch),  # Use modified APK if package name was changed
             output_apk=args.output,
             temp_path=args.temp_path,
             artifactory_list=artifactory_list,
@@ -129,10 +168,6 @@ def main():
             extra_artifacts=extra_artifacts,
     ) as stitch:
         stitch.patch()
-    
-    # Change package name if specified
-    if args.new_package and args.new_package != 'com.whatsapp':
-        change_package_name(Path(args.output), args.new_package)
 
 
 if __name__ == '__main__':
