@@ -1,5 +1,7 @@
 import argparse
 import os
+import sys
+import shutil
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -7,6 +9,7 @@ from pathlib import Path
 from stitch import Stitch
 from stitch.common import ExternalModule
 from stitch import patcher as stitch_patcher
+from stitch import apk_utils
 
 from artifactory_generator.firebase_params import FirebaseParamsFinder
 from artifactory_generator.fmessage import FMessage
@@ -74,27 +77,40 @@ def main():
         FirebaseParamsFinder(args),
     ]
     
-    # If edit-manifest flag is set, pass it through via a custom attribute
+    # Convert temp_path to Path object
+    temp_path = Path(args.temp_path)
+    
+    # Create Stitch instance
     with Stitch(
             apk_path=args.apk_path,
             output_apk=args.output,
-            temp_path=args.temp_path,
+            temp_path=temp_path,
             artifactory_list=artifactory_list,
             google_api_key=args.api_key,
             external_modules=external_modules,
             should_sign=args.should_sign,
             extra_artifacts=extra_artifacts,
     ) as stitch:
+        # First, extract the APK
+        print(f'[+] Extracting APK...')
+        apk_utils.extract_apk(args.apk_path, temp_path)
+        
         # If edit-manifest requested, pause before patching to let user edit
         if args.edit_manifest:
+            # Check if we're in an interactive terminal
+            if not sys.stdin.isatty():
+                print(f'[-] Error: --edit-manifest requires an interactive terminal')
+                print(f'[-] Please run without & (background) flag and ensure you have a terminal')
+                return
+            
             print(f'')
             print(f'[!] ==================== EDIT MANIFEST MODE ====================')
-            print(f'[!] APK has been decompiled to: {args.temp_path}')
+            print(f'[!] APK has been decompiled to: {temp_path}')
             print(f'')
             print(f'[!] You can now edit files:')
-            print(f'[!]   • {args.temp_path}/apk/ - Decompiled smali and resources')
-            print(f'[!]   • {args.temp_path}/apk/AndroidManifest.xml (binary XML - use hex editor or Apktool)')
-            print(f'[!]   • {args.temp_path}/classes/ - Decompiled Java bytecode')
+            print(f'[!]   • {temp_path}/apk/ - Decompiled smali and resources')
+            print(f'[!]   • {temp_path}/apk/AndroidManifest.xml (binary XML - use hex editor or Apktool)')
+            print(f'[!]   • {temp_path}/classes/ - Decompiled Java bytecode')
             print(f'')
             print(f'[!] Common edits:')
             print(f'[!]   - Change package: Edit AndroidManifest.xml package attribute')
@@ -116,6 +132,13 @@ def main():
                 print(f'')
                 print(f'[-] Patch cancelled by user')
                 return
+        
+        # Clean up extracted directory before calling patch()
+        # (patch() will re-extract with proper structure for patching)
+        extracted_path = Path(temp_path) / 'extracted'
+        if extracted_path.exists():
+            print(f'[+] Cleaning up for patching...')
+            shutil.rmtree(extracted_path)
         
         # Continue with patching
         stitch.patch()
