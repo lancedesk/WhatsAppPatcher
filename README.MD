@@ -40,20 +40,18 @@ patch.bat              # Windows CMD
 Then follow the prompts - the script handles:
 - ✅ Downloading latest WhatsApp APK (manual step)
 - ✅ Automatically patching it
-- ✅ Setting custom package name for dual installation
 - ✅ Signing and output
 
 **Command-line options** (all optional):
 ```bash
-# Custom package name
-./patch.sh --new-package com.whatsapp.modded
-
 # With Google API key
 ./patch.sh --api-key YOUR_KEY_HERE
 
 # Custom output path
 ./patch.sh --output /path/to/output.apk
 ```
+
+**Note:** Package name modification is coming in v1.3.0. For dual installation now, see [Dual Installation section](#dual-installation-run-both-official--patched).
 
 ## Features
 
@@ -124,19 +122,38 @@ py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" -g YOUR_GOOGLE_
 ```
 
 ### Dual Installation (Run Both Official + Patched)
-```bash
-# Default: Changes package to com.whatsapp.patched
-py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk"
 
-# Custom package name:
-py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" --new-package com.whatsapp.modded
+**Current Limitation:** Package name modification requires Apktool integration (planned for v1.3.0).
+
+For now, you have two options:
+
+**Option 1: Rename APK before patching (recommended for v1.2.x)**
+```bash
+# Use Apktool to modify package before patching
+apktool d WhatsApp.apk
+# Edit apk/AndroidManifest.xml - change package attribute
+apktool b apk -o WhatsApp-modified.apk
+# Now patch the modified APK
+py -3 main.py -p "WhatsApp-modified.apk" -o "PatchedWhatsApp.apk"
 ```
 
-**Why dual installation?**
+**Option 2: Keep original package (simpler, single instance)**
+```bash
+# Just patch normally - resulting APK has original com.whatsapp package
+py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk"
+
+# Install: uninstall original, install patched version
+adb uninstall com.whatsapp
+adb install PatchedWhatsApp.apk
+```
+
+**Why we want dual installation:**
 - Keep official WhatsApp on main phone (auto-updates from Play Store)
 - Install patched version with different package name
 - Both run simultaneously, each with own data/account
 - No uninstall/reinstall cycles
+
+**Upcoming (v1.3.0):** Full Apktool integration will automate package name changes.
 
 The Google API key is optional and only needed for OAuth bypass feature. Refer to the [Google API Key section](#google-api-key) for setup.
 

@@ -35,78 +35,31 @@ def apply_windows_gradle_wrapper_fix() -> None:
 
 def change_package_name_in_apk(apk_path: Path, new_package: str) -> Path:
     """
-    Modify the package name in AndroidManifest.xml by creating a modified copy.
-    This must be done BEFORE patching to ensure signature validity.
+    Package name modification at build time is complex due to Android's binary XML format.
     
-    Args:
-        apk_path: Path to the original APK file
-        new_package: New package name (e.g., com.whatsapp.patched)
+    Android stores the manifest as a binary XML file with a string pool. Modifying package names
+    requires proper handling of offsets and length metadata, which is non-trivial.
     
-    Returns:
-        Path to the modified APK (either original or modified copy)
+    Instead of attempting binary modification, users have these options:
+    1. Use Apktool: apktool d app.apk && modify && apktool b app
+    2. Use Frida hooks to modify package name at runtime
+    3. Install on Android and use Xposed/LSPosed modules
+    4. This feature will work correctly in future versions when we integrate Apktool
+    
+    For now, this function returns the original APK unchanged.
     """
     if new_package == 'com.whatsapp':
-        # Skip if trying to keep original package
         return apk_path
     
-    print(f'[+] Creating input APK with package name: {new_package}...')
+    print(f'[!] Package name modification requested: {new_package}')
+    print(f'[!] This feature requires Apktool integration (coming in v1.3.0)')
+    print(f'[!] Workaround: Use external tools after patching:')
+    print(f'[!]   apktool d PatchedWhatsApp.apk')
+    print(f'[!]   # Edit AndroidManifest.xml package attribute')
+    print(f'[!]   apktool b PatchedWhatsApp')
+    print(f'[!] Continuing with original package name for now...')
     
-    try:
-        # Read current manifest
-        with zipfile.ZipFile(apk_path, 'r') as zip_ref:
-            manifest_data = zip_ref.read('AndroidManifest.xml')
-        
-        # Binary string replacement in manifest
-        original_bytes = b'com.whatsapp'
-        new_bytes = new_package.encode('utf-8')
-        
-        # Count occurrences
-        count = manifest_data.count(original_bytes)
-        
-        if count == 0:
-            print(f'[!] Package name "com.whatsapp" not found in manifest - using original APK')
-            return apk_path
-        
-        print(f'[*] Found {count} occurrence(s) of "com.whatsapp" in manifest')
-        
-        # Handle length differences
-        if len(new_bytes) == len(original_bytes):
-            # Same length - simple replacement
-            modified_data = manifest_data.replace(original_bytes, new_bytes)
-        elif len(new_bytes) < len(original_bytes):
-            # Shorter - pad with nulls
-            new_bytes_padded = new_bytes + b'\x00' * (len(original_bytes) - len(new_bytes))
-            modified_data = manifest_data.replace(original_bytes, new_bytes_padded)
-        else:
-            # Longer - not safe, use original
-            print(f'[!] New package name is longer than original - using original APK')
-            return apk_path
-        
-        if modified_data != manifest_data:
-            # Create modified APK copy in temp directory
-            modified_apk = apk_path.parent / 'temp' / f"{apk_path.stem}_modified.apk"
-            modified_apk.parent.mkdir(parents=True, exist_ok=True)
-            
-            with zipfile.ZipFile(apk_path, 'r') as zip_read:
-                with zipfile.ZipFile(modified_apk, 'w', zipfile.ZIP_DEFLATED) as zip_write:
-                    for item in zip_read.inlist():
-                        data = zip_read.read(item.filename)
-                        if item.filename == 'AndroidManifest.xml':
-                            zip_write.writestr(item, modified_data)
-                        else:
-                            zip_write.writestr(item, data)
-            
-            print(f'[+] Modified APK created: {modified_apk}')
-            return modified_apk
-        else:
-            print(f'[-] Failed to modify package name in binary data')
-            return apk_path
-            
-    except Exception as e:
-        print(f'[-] Failed to change package name: {e}')
-        print('[-] Using original APK instead')
-        import traceback
-        traceback.print_exc()
+    return apk_path
         return apk_path
 
 
@@ -127,8 +80,8 @@ def get_args():
                         required=False, default=[], nargs='+')
     parser.add_argument('--paywall', dest='paywall', help='Whether to add the paywall patch', required=False,
                         default=None)
-    parser.add_argument('--new-package', dest='new_package', help='New package name (default: com.whatsapp.patched)', 
-                        required=False, default='com.whatsapp.patched')
+    parser.add_argument('--new-package', dest='new_package', help='New package name (NOT YET IMPLEMENTED - requires Apktool integration)', 
+                        required=False, default='com.whatsapp')
     args, _ = parser.parse_known_args()
     return args
 
