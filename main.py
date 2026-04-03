@@ -18,6 +18,50 @@ from artifactory_generator.signature_finder import SignatureFinder
 from artifactory_generator.decrypt_protobuf_finder import DecryptProtobufFinder
 
 
+def modify_manifest_in_apk(apk_path: str, new_package: str) -> bool:
+    """Modify package name in APK's binary manifest after compilation"""
+    import tempfile
+    
+    print(f'[+] Modifying package name in compiled APK...')
+    
+    with open(apk_path, 'rb') as f:
+        data = bytearray(f.read())
+    
+    old_package = 'com.whatsapp'
+    
+    # Try UTF-16-BE encoding (Android standard)
+    patterns = [
+        old_package.encode('utf-16-be') + b'\x00\x00',
+    ]
+    
+    for pattern in patterns:
+        if pattern in data:
+            # Calculate proper padding
+            old_bytes = pattern
+            new_bytes = new_package.encode('utf-16-be') + b'\x00\x00'
+            
+            if len(new_bytes) > len(old_bytes):
+                print(f'[-] New package too long')
+                return False
+            
+            # Pad to match length
+            if len(new_bytes) < len(old_bytes):
+                new_bytes += b'\x00' * (len(old_bytes) - len(new_bytes))
+            
+            count = data.count(old_bytes)
+            print(f'[+] Found {count} occurrence(s) of package name')
+            data = data.replace(old_bytes, new_bytes)
+            
+            with open(apk_path, 'wb') as f:
+                f.write(data)
+            
+            print(f'[✓] Package name changed to: {new_package}')
+            return True
+    
+    print(f'[-] Could not find package pattern in APK')
+    return False
+
+
 def apply_windows_gradle_wrapper_fix() -> None:
     if os.name != 'nt':
         return
@@ -157,20 +201,27 @@ def main():
                 print(f'')
                 print(f'[-] Patch cancelled by user')
                 return
-        
-        # Clean up extracted directory before calling patch()
-        # (patch() will re-extract with proper structure for patching)
-        extracted_path = Path(temp_path) / 'extracted'
-        if extracted_path.exists():
-            print(f'[+] Cleaning up for patching...')
-            shutil.rmtree(extracted_path)
+        else:
+            # If NOT in edit-manifest mode, clean extracted dir so patch() will re-extract
+            extracted_path = Path(temp_path) / 'extracted'
+            if extracted_path.exists():
+                shutil.rmtree(extracted_path)
         
         # Continue with patching
         stitch.patch()
+        
+        # If edit-manifest was requested, modify the package name in the final APK
+        if args.edit_manifest:
+            print(f'')
+            print(f'[+] Applying manifest modifications to final APK...')
+            if modify_manifest_in_apk(args.output, 'com.whatsapp2'):
+                print(f'[✓] Manifest modified successfully!')
+            else:
+                print(f'[-] Warning: Could not modify manifest in final APK')
     
     print(f'')
     if args.edit_manifest:
-        print(f'[+] Patching completed with edited manifest!')
+        print(f'[+] Patching completed with edited manifest (com.whatsapp2)!')
     else:
         print(f'[+] Patching completed!')
 
