@@ -87,6 +87,21 @@ python3 main.py -p ./WhatsApp.apk -o PatchedWhatsApp.apk
 py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" -g YOUR_GOOGLE_API_KEY
 ```
 
+### Dual Installation (Run Both Official + Patched)
+```bash
+# Default: Changes package to com.whatsapp.patched
+py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk"
+
+# Custom package name:
+py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" --new-package com.whatsapp.modded
+```
+
+**Why dual installation?**
+- Keep official WhatsApp on main phone (auto-updates from Play Store)
+- Install patched version with different package name
+- Both run simultaneously, each with own data/account
+- No uninstall/reinstall cycles
+
 The Google API key is optional and only needed for OAuth bypass feature. Refer to the [Google API Key section](#google-api-key) for setup.
 
 ## Google API Key Setup
@@ -123,7 +138,13 @@ To keep both official and patched WhatsApp:
 
 ## Changelog - Windows Compatibility Fork
 
-### v1.1.0-windows (Current)
+### v1.2.0-windows (Latest)
+- ✅ **NEW: Package name modification** - Run official + patched WhatsApp simultaneously
+  - Add `--new-package` flag to change package name (default: `com.whatsapp.patched`)
+  - Allows dual installation without uninstall/reinstall cycles
+  - Usage: `py -3 main.py -p WhatsApp.apk -o Patched.apk --new-package com.whatsapp.custom`
+
+### v1.1.0-windows
 - ✅ Fixed Gradle wrapper execution on Windows (batch file support)
 - ✅ Added Firebase ARSC parsing resilience for problematic APK builds
 - ✅ Fixed APK signing with debug keystore (`debugSigned` naming)
@@ -168,6 +189,21 @@ signed_candidates = [
 ```properties
 sdk.dir=C:\\Android\\Sdk
 ```
+
+#### 5. **main.py** - Package Name Modification
+```python
+# New --new-package flag allows changing package name after patching
+def change_package_name(apk_path, new_package):
+    # Modifies AndroidManifest.xml within the APK
+    # Default: com.whatsapp.patched
+    # Allows: py -3 main.py -p in.apk -o out.apk --new-package com.whatsapp.custom
+```
+
+**Why package name modification?**
+- Android prohibits multiple apps with same package name
+- By changing `com.whatsapp` → `com.whatsapp.patched`, both versions coexist
+- No uninstall/reinstall needed
+- Each instance maintains separate account/data
 
 ## Credits
 
