@@ -123,37 +123,56 @@ py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" -g YOUR_GOOGLE_
 
 ### Dual Installation (Run Both Official + Patched)
 
-**Current Limitation:** Package name modification requires Apktool integration (planned for v1.3.0).
+**New in v1.2.1:** Full Apktool integration for one-command dual installation!
 
-For now, you have two options:
-
-**Option 1: Rename APK before patching (recommended for v1.2.x)**
+**Apktool Installation (one-time setup):**
 ```bash
-# Use Apktool to modify package before patching
-apktool d WhatsApp.apk
-# Edit apk/AndroidManifest.xml - change package attribute
-apktool b apk -o WhatsApp-modified.apk
-# Now patch the modified APK
-py -3 main.py -p "WhatsApp-modified.apk" -o "PatchedWhatsApp.apk"
+# Windows (with Chocolatey)
+choco install apktool
+
+# macOS
+brew install apktool
+
+# Linux (Ubuntu/Debian)
+sudo apt install apktool
+
+# Or download from https://apktool.org/ and add to PATH
 ```
 
-**Option 2: Keep original package (simpler, single instance)**
+**Then use the `--dual-install` flag:**
 ```bash
-# Just patch normally - resulting APK has original com.whatsapp package
-py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk"
+# Dual installation with custom package name
+py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" --dual-install com.whatsapp.patched
+```
 
-# Install: uninstall original, install patched version
-adb uninstall com.whatsapp
+This automatically:
+1. ✅ Decompiles your APK
+2. ✅ Changes package name to the specified value
+3. ✅ Recompiles it
+4. ✅ Patches the modified APK
+5. ✅ Outputs the final patched APK
+
+**Installation on Android:**
+```bash
+# Keep official WhatsApp
+adb install -r com.whatsapp_2.26.12.73.apk
+
+# Install patched version with new package name
 adb install PatchedWhatsApp.apk
+
+# Both now run simultaneously with separate accounts/data
 ```
 
-**Why we want dual installation:**
-- Keep official WhatsApp on main phone (auto-updates from Play Store)
+**Why dual installation?**
+- Keep official WhatsApp (auto-updates from Play Store)
 - Install patched version with different package name
-- Both run simultaneously, each with own data/account
-- No uninstall/reinstall cycles
+- Both run simultaneously with independent accounts
+- No uninstall/reinstall cycles needed
 
-**Upcoming (v1.3.0):** Full Apktool integration will automate package name changes.
+**Troubleshooting apktool on Windows + Git Bash:**
+- Apktool gets installed as a `.bat` file, so regular `apktool` command may not work in Git Bash
+- Solution: Add `C:\apktool` to your environment PATH (or wherever you installed it)
+- The patcher automatically detects both `apktool` and `apktool.bat` commands
 
 The Google API key is optional and only needed for OAuth bypass feature. Refer to the [Google API Key section](#google-api-key) for setup.
 
