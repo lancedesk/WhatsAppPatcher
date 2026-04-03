@@ -1,14 +1,32 @@
 import argparse
+import os
 from pathlib import Path
 
 from stitch import Stitch
 from stitch.common import ExternalModule
+from stitch import patcher as stitch_patcher
 
 from artifactory_generator.firebase_params import FirebaseParamsFinder
 from artifactory_generator.fmessage import FMessage
 from artifactory_generator.dex_copier import DexCopier
 from artifactory_generator.signature_finder import SignatureFinder
 from artifactory_generator.decrypt_protobuf_finder import DecryptProtobufFinder
+
+
+def apply_windows_gradle_wrapper_fix() -> None:
+    if os.name != 'nt':
+        return
+
+    original_check_call = stitch_patcher.subprocess.check_call
+
+    def patched_check_call(command, *args, **kwargs):
+        if isinstance(command, list) and command and command[0] == './gradlew':
+            # On Windows, use shell=True so it finds gradlew.bat in cwd
+            command_str = 'gradlew.bat ' + ' '.join(command[1:])
+            return original_check_call(command_str, *args, shell=True, **kwargs)
+        return original_check_call(command, *args, **kwargs)
+
+    stitch_patcher.subprocess.check_call = patched_check_call
 
 
 def get_args():
@@ -33,6 +51,7 @@ def get_args():
 
 
 def main():
+    apply_windows_gradle_wrapper_fix()
     args = get_args()
     extra_artifacts = {artifact.split(':')[0]: artifact.split(':')[1] for artifact in args.extra_artifacts}
     external_modules = [

@@ -189,3 +189,22 @@ script.js
 /keystore.jks
 **.jadx
 /smali_generator/app/release/
+
+# APK and Build Artifacts
+*.apk
+*.aab
+temp/
+temp_output/
+output/
+output_bundle_apks/
+*.unsigned.apk
+*-aligned.apk
+*-signed.apk
+*-debugSigned.apk
+.gradle/
+.cxx/
+.idea/
+.vscode/
+*.swp
+PatchedWhatsApp.apk
+com.whatsapp_*.apk
