@@ -93,11 +93,9 @@ def modify_apk_package_with_apktool(apk_path: Path, new_package: str) -> Path:
         
         # Step 1: Decompile
         print(f'[*] Decompiling APK with apktool...')
-        result = subprocess.run(
-            [apktool_cmd, 'd', str(apk_path), '-o', str(decompiled_dir)],
-            capture_output=True,
-            text=True
-        )
+        # On Windows with .bat files, need to use shell=True to properly execute
+        cmd_str = f'"{apktool_cmd}" d "{apk_path}" -o "{decompiled_dir}"'
+        result = subprocess.run(cmd_str, capture_output=True, text=True, shell=True)
         
         if result.returncode != 0:
             print(f'[-] Decompile failed: {result.stderr}')
@@ -121,11 +119,8 @@ def modify_apk_package_with_apktool(apk_path: Path, new_package: str) -> Path:
         print(f'[*] Recompiling APK with apktool...')
         modified_apk = apk_path.parent / 'temp' / f"{apk_path.stem}_dual.apk"
         
-        result = subprocess.run(
-            [apktool_cmd, 'b', str(decompiled_dir), '-o', str(modified_apk)],
-            capture_output=True,
-            text=True
-        )
+        cmd_str = f'"{apktool_cmd}" b "{decompiled_dir}" -o "{modified_apk}"'
+        result = subprocess.run(cmd_str, capture_output=True, text=True, shell=True)
         
         if result.returncode != 0:
             print(f'[-] Recompile failed: {result.stderr}')
@@ -170,7 +165,6 @@ def change_package_name_in_apk(apk_path: Path, new_package: str) -> Path:
     print(f'[!] Continuing with original package name for now...')
     
     return apk_path
-        return apk_path
 
 
 def get_args():
