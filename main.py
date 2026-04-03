@@ -72,6 +72,14 @@ def apply_windows_gradle_wrapper_fix() -> None:
         # Increase timeout for long-running operations like apktool
         if isinstance(command, list) and command:
             if 'apktool' in str(command):
+                # Add -f flag to apktool d (decompile) to force overwrite existing directories
+                if '-r' in command and '--output' in command:
+                    # This is: apktool d -q -r --output <dir> <apk>
+                    # Insert -f after -r
+                    if '-f' not in command:
+                        idx = command.index('-r')
+                        command.insert(idx + 1, '-f')
+                
                 # Increase timeout from 1200s to 3600s (1 hour) for large APK builds
                 kwargs['timeout'] = max(kwargs.get('timeout', 1200), 3600)
             elif command[0] == './gradlew':
@@ -81,6 +89,39 @@ def apply_windows_gradle_wrapper_fix() -> None:
         return original_check_call(command, *args, **kwargs)
 
     stitch_patcher.subprocess.check_call = patched_check_call
+
+
+def force_cleanup_temp_dir(temp_path: str) -> None:
+    """Force remove temp directory, handling Windows file locks"""
+    import time
+    
+    temp = Path(temp_path)
+    if not temp.exists():
+        return
+    
+    # Try normal removal first
+    try:
+        shutil.rmtree(temp)
+        return
+    except (OSError, PermissionError):
+        pass
+    
+    # If that fails, try Python's rmtree with ignore_errors
+    try:
+        shutil.rmtree(temp, ignore_errors=True)
+        time.sleep(0.5)  # Small delay for file system to catch up
+        if not temp.exists():
+            return
+    except:
+        pass
+    
+    # Last resort: use system command
+    if os.name == 'nt':
+        try:
+            os.system(f'rmdir /s /q "{temp}" 2>nul')
+            time.sleep(0.5)
+        except:
+            pass
 
 
 def increase_apktool_timeout() -> None:
@@ -129,6 +170,9 @@ def main():
     apply_windows_gradle_wrapper_fix()
     increase_apktool_timeout()
     args = get_args()
+    
+    # Clean up previous temp directory (handling Windows file locks)
+    force_cleanup_temp_dir(args.temp_path)
     
     extra_artifacts = {artifact.split(':')[0]: artifact.split(':')[1] for artifact in args.extra_artifacts}
     external_modules = [
