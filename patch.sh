@@ -3,7 +3,6 @@
 # WhatsApp Patcher - Automated Download & Patch Script
 # Usage: ./patch.sh [OPTIONS]
 # Options:
-#   --new-package PACKAGE_NAME    Custom package name (default: com.whatsapp.patched)
 #   --api-key API_KEY              Google API key (optional)
 #   --output OUTPUT_PATH          Output APK path (default: PatchedWhatsApp.apk)
 #   --help                        Show this help message
@@ -17,7 +16,6 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Default values
-NEW_PACKAGE="com.whatsapp.patched"
 API_KEY=""
 OUTPUT_APK="PatchedWhatsApp.apk"
 TEMP_DIR="./whatsapp_download"
@@ -31,17 +29,13 @@ WhatsApp Patcher - Automated Download & Patch
 Usage: ./patch.sh [OPTIONS]
 
 Options:
-    --new-package PACKAGE_NAME    Custom package name (default: com.whatsapp.patched)
     --api-key API_KEY             Google API key for OAuth bypass (optional)
     --output OUTPUT_PATH          Output APK path (default: PatchedWhatsApp.apk)
     --help                        Show this help message
 
 Examples:
-    # Basic usage (downloads latest, patches with default package)
+    # Basic usage (downloads latest, patches)
     ./patch.sh
-
-    # Custom package name
-    ./patch.sh --new-package com.whatsapp.modded
 
     # With Google API key
     ./patch.sh --api-key YOUR_KEY_HERE
@@ -144,7 +138,7 @@ else
 fi
 
 # Build patcher command
-PATCHER_CMD="$PYTHON_CMD main.py -p \"$LATEST_APK\" -o \"$OUTPUT_APK\" --new-package \"$NEW_PACKAGE\""
+PATCHER_CMD="$PYTHON_CMD main.py -p \"$LATEST_APK\" -o \"$OUTPUT_APK\""
 
 if [ ! -z "$API_KEY" ]; then
     PATCHER_CMD="$PATCHER_CMD -g \"$API_KEY\""
@@ -162,7 +156,6 @@ if [ $PATCHER_EXIT_CODE -eq 0 ]; then
     echo ""
     echo -e "${GREEN}[+] Patching completed successfully!${NC}"
     echo -e "${GREEN}[+] Output APK: $OUTPUT_APK${NC}"
-    echo -e "${GREEN}[+] Package name: $NEW_PACKAGE${NC}"
     echo ""
     echo -e "${GREEN}Installation Instructions:${NC}"
     echo -e "${GREEN}1. Transfer $OUTPUT_APK to your Android device${NC}"

@@ -121,60 +121,56 @@ python3 main.py -p ./WhatsApp.apk -o PatchedWhatsApp.apk
 py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" -g YOUR_GOOGLE_API_KEY
 ```
 
-### Dual Installation (Run Both Official + Patched)
+### Custom Manifest Edits (Advanced)
 
-**New in v1.2.1:** Full Apktool integration for one-command dual installation!
+**New in v1.2.2:** Edit APK before patching with `--edit-manifest` flag!
 
-**Apktool Installation (one-time setup):**
 ```bash
-# Windows (with Chocolatey)
-choco install apktool
-
-# macOS
-brew install apktool
-
-# Linux (Ubuntu/Debian)
-sudo apt install apktool
-
-# Or download from https://apktool.org/ and add to PATH
+# Decompile, pause for editing, then patch
+py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" --edit-manifest
 ```
 
-**Then use the `--dual-install` flag:**
+**Workflow:**
+1. APK is decompiled to `temp/`
+2. Patcher **pauses** and shows you the file structure
+3. You edit files in `temp/apk/` or `temp/classes/`
+4. Press Enter to continue with patching
+
+**Dual Installation Example:**
 ```bash
-# Dual installation with custom package name
-py -3 main.py -p "path/to/WhatsApp.apk" -o "PatchedWhatsApp.apk" --dual-install com.whatsapp.patched
+# 1. Start with edit flag
+py -3 main.py -p WhatsApp.apk -o PatchedWhatsApp.apk --edit-manifest
+
+# 2. When paused, edit the manifest using Apktool:
+apktool d temp/apk/AndroidManifest.xml -o manifest/
+# Edit manifest/AndroidManifest.xml - change package="com.whatsapp" 
+# to package="com.whatsapp.patched"
+apktool b manifest -o temp/apk/AndroidManifest.xml
+
+# 3. Press Enter in the terminal to resume patching
 ```
 
-This automatically:
-1. ✅ Decompiles your APK
-2. ✅ Changes package name to the specified value
-3. ✅ Recompiles it
-4. ✅ Patches the modified APK
-5. ✅ Outputs the final patched APK
+**Important Notes:**
+- `temp/apk/AndroidManifest.xml` is **binary format** - use Apktool to edit it
+- `temp/classes/` contains decompiled Java (smali format) - fully editable
+- All edits save automatically - don't move temp folder during patching
+- Press Ctrl+C in terminal to cancel if needed
 
-**Installation on Android:**
+**Simpler Dual Install Alternative:**
 ```bash
-# Keep official WhatsApp
-adb install -r com.whatsapp_2.26.12.73.apk
-
-# Install patched version with new package name
-adb install PatchedWhatsApp.apk
-
-# Both now run simultaneously with separate accounts/data
+# Use Apktool first, then patch
+apktool d WhatsApp.apk -o wa
+# Edit wa/AndroidManifest.xml
+apktool b wa -o WhatsApp-modified.apk
+# Now patch
+py -3 main.py -p WhatsApp-modified.apk -o PatchedWhatsApp.apk
 ```
 
-**Why dual installation?**
-- Keep official WhatsApp (auto-updates from Play Store)
-- Install patched version with different package name
-- Both run simultaneously with independent accounts
-- No uninstall/reinstall cycles needed
-
-**Troubleshooting apktool on Windows + Git Bash:**
-- Apktool gets installed as a `.bat` file, so regular `apktool` command may not work in Git Bash
-- Solution: Add `C:\apktool` to your environment PATH (or wherever you installed it)
-- The patcher automatically detects both `apktool` and `apktool.bat` commands
-
-The Google API key is optional and only needed for OAuth bypass feature. Refer to the [Google API Key section](#google-api-key) for setup.
+The `--edit-manifest` feature is ideal for:
+- Creating dual installations (different package names)
+- Modifying smali code before patching
+- Custom resource edits
+- Any APK modifications
 
 ## Google API Key Setup
 
