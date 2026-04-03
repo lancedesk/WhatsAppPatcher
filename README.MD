@@ -19,6 +19,42 @@ This fork adds **Windows and Git Bash support** to the original project, which w
 
 *Note: `apk_utils.py` fix applied to installed stitch package, included as patch documentation.
 
+## Quick Start (Simplified)
+
+**For users who just want to download, patch, and install:**
+
+### Windows (Git Bash or CMD)
+```bash
+# Clone repository
+git clone https://github.com/lancedesk/WhatsAppPatcher.git
+cd WhatsAppPatcher
+git submodule update --init --recursive
+pip install -r requirements.txt
+
+# Run automated patcher (interactive)
+bash patch.sh           # Git Bash
+# OR
+patch.bat              # Windows CMD
+```
+
+Then follow the prompts - the script handles:
+- ✅ Downloading latest WhatsApp APK (manual step)
+- ✅ Automatically patching it
+- ✅ Setting custom package name for dual installation
+- ✅ Signing and output
+
+**Command-line options** (all optional):
+```bash
+# Custom package name
+./patch.sh --new-package com.whatsapp.modded
+
+# With Google API key
+./patch.sh --api-key YOUR_KEY_HERE
+
+# Custom output path
+./patch.sh --output /path/to/output.apk
+```
+
 ## Features
 
 |            Feature             | Availability |
