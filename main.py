@@ -25,13 +25,37 @@ def apply_windows_gradle_wrapper_fix() -> None:
     original_check_call = stitch_patcher.subprocess.check_call
 
     def patched_check_call(command, *args, **kwargs):
-        if isinstance(command, list) and command and command[0] == './gradlew':
-            # On Windows, use shell=True so it finds gradlew.bat in cwd
-            command_str = 'gradlew.bat ' + ' '.join(command[1:])
-            return original_check_call(command_str, *args, shell=True, **kwargs)
+        # Increase timeout for long-running operations like apktool
+        if isinstance(command, list) and command:
+            if 'apktool' in str(command):
+                # Increase timeout from 1200s to 3600s (1 hour) for large APK builds
+                kwargs['timeout'] = max(kwargs.get('timeout', 1200), 3600)
+            elif command[0] == './gradlew':
+                # On Windows, use shell=True so it finds gradlew.bat in cwd
+                command_str = 'gradlew.bat ' + ' '.join(command[1:])
+                return original_check_call(command_str, *args, shell=True, **kwargs)
         return original_check_call(command, *args, **kwargs)
 
     stitch_patcher.subprocess.check_call = patched_check_call
+
+
+def increase_apktool_timeout() -> None:
+    """Increase timeout for Apktool compilation on Windows (large APKs need more time)"""
+    # The default timeout in Stitch's compile_apk is 1200 seconds (20 minutes)
+    # For large APKs like WhatsApp (130+ MB), we need more time
+    # We'll override the subprocess.run to use a much larger timeout
+    
+    import stitch.apk_utils as apk_utils
+    original_check_call = apk_utils.subprocess.check_call
+    
+    def patched_check_call_timeout(command, *args, **kwargs):
+        # If this is the apktool build command, increase timeout to 3600 seconds (60 minutes)
+        if isinstance(command, list) and 'apktool' in str(command):
+            kwargs['timeout'] = 3600  # 60 minutes
+            print(f'[!] Increasing apktool timeout to 60 minutes for large APK...')
+        return original_check_call(command, *args, **kwargs)
+    
+    apk_utils.subprocess.check_call = patched_check_call_timeout
 
 
 def get_args():
@@ -59,6 +83,7 @@ def get_args():
 
 def main():
     apply_windows_gradle_wrapper_fix()
+    increase_apktool_timeout()
     args = get_args()
     
     extra_artifacts = {artifact.split(':')[0]: artifact.split(':')[1] for artifact in args.extra_artifacts}

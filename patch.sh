@@ -1,53 +1,35 @@
 #!/bin/bash
-
-# WhatsApp Patcher - Automated Download & Patch Script
-# Usage: ./patch.sh [OPTIONS]
-# Options:
-#   --api-key API_KEY              Google API key (optional)
-#   --output OUTPUT_PATH          Output APK path (default: PatchedWhatsApp.apk)
-#   --help                        Show this help message
+# WhatsApp Patcher - Simple automated patch script
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+echo "[+] WhatsApp Patcher"
+echo "[+] Starting patching process..."
+echo ""
 
-# Default values
-API_KEY=""
-OUTPUT_APK="PatchedWhatsApp.apk"
-TEMP_DIR="./whatsapp_download"
-LATEST_APK=""
+# Check if WhatsApp.apk exists
+if [ ! -f "WhatsApp.apk" ]; then
+    echo "[-] Error: WhatsApp.apk not found in current directory"
+    echo "[!] Please ensure WhatsApp.apk is in the current directory"
+    exit 1
+fi
 
-# Function to print help
-print_help() {
-    cat << EOF
-WhatsApp Patcher - Automated Download & Patch
+# Clean up previous builds
+echo "[+] Cleaning up previous builds..."
+rm -rf temp/
 
-Usage: ./patch.sh [OPTIONS]
+# Run the patcher with edit-manifest flag
+echo "[+] Running patcher with manifest edit mode..."
+echo "[!] The patcher will pause after extraction to allow edits"
+echo ""
 
-Options:
-    --api-key API_KEY             Google API key for OAuth bypass (optional)
-    --output OUTPUT_PATH          Output APK path (default: PatchedWhatsApp.apk)
-    --help                        Show this help message
+py main.py -p WhatsApp.apk -o PatchedWhatsApp.apk --edit-manifest
 
-Examples:
-    # Basic usage (downloads latest, patches)
-    ./patch.sh
-
-    # With Google API key
-    ./patch.sh --api-key YOUR_KEY_HERE
-
-    # Custom output path
-    ./patch.sh --output /path/to/output.apk
-
-EOF
-}
-
-# Parse arguments
-while [[ $# -gt 0 ]]; do
+echo ""
+echo "[+] =========================================="
+echo "[+] Patching complete!"
+echo "[+] Output: PatchedWhatsApp.apk"
+echo "[+] =========================================="
     case $1 in
         --new-package)
             NEW_PACKAGE="$2"
