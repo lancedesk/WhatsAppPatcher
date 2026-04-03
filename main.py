@@ -6,6 +6,7 @@ import struct
 import io
 import subprocess
 import shutil
+import shlex
 from pathlib import Path
 
 from stitch import Stitch
@@ -91,14 +92,19 @@ def modify_apk_package_with_apktool(apk_path: Path, new_package: str) -> Path:
         
         decompiled_dir = work_dir / 'apk'
         
-        # Step 1: Decompile
+        # Step 1: Decompile using list of args (Python handles quoting/escaping)
         print(f'[*] Decompiling APK with apktool...')
-        # On Windows with .bat files, need to use shell=True to properly execute
-        cmd_str = f'"{apktool_cmd}" d "{apk_path}" -o "{decompiled_dir}"'
-        result = subprocess.run(cmd_str, capture_output=True, text=True, shell=True)
+        result = subprocess.run(
+            [apktool_cmd, 'd', str(apk_path), '-o', str(decompiled_dir)],
+            capture_output=True,
+            text=True
+        )
         
         if result.returncode != 0:
             print(f'[-] Decompile failed: {result.stderr}')
+            # Clean up on failure
+            if decompiled_dir.exists():
+                shutil.rmtree(decompiled_dir.parent)
             return apk_path
         
         # Step 2: Modify AndroidManifest.xml
@@ -119,22 +125,31 @@ def modify_apk_package_with_apktool(apk_path: Path, new_package: str) -> Path:
         print(f'[*] Recompiling APK with apktool...')
         modified_apk = apk_path.parent / 'temp' / f"{apk_path.stem}_dual.apk"
         
-        cmd_str = f'"{apktool_cmd}" b "{decompiled_dir}" -o "{modified_apk}"'
-        result = subprocess.run(cmd_str, capture_output=True, text=True, shell=True)
+        result = subprocess.run(
+            [apktool_cmd, 'b', str(decompiled_dir), '-o', str(modified_apk)],
+            capture_output=True,
+            text=True
+        )
         
         if result.returncode != 0:
             print(f'[-] Recompile failed: {result.stderr}')
+            # Clean up on failure
+            if decompiled_dir.exists():
+                shutil.rmtree(decompiled_dir.parent)
             return apk_path
         
         print(f'[+] Modified APK created: {modified_apk.name}')
         
-        # Cleanup
-        shutil.rmtree(decompiled_dir)
+        # Cleanup decompiled directory and work folder
+        if decompiled_dir.parent.exists():
+            shutil.rmtree(decompiled_dir.parent)
         
         return modified_apk
         
     except Exception as e:
         print(f'[-] Error during Apktool modification: {e}')
+        import traceback
+        traceback.print_exc()
         return apk_path
 
 
