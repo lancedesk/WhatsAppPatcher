@@ -174,6 +174,14 @@ def main():
     # Clean up previous temp directory (handling Windows file locks)
     force_cleanup_temp_dir(args.temp_path)
     
+    # Remove output APK if it exists (prevents rename conflicts)
+    output_path = Path(args.output)
+    if output_path.exists():
+        try:
+            output_path.unlink()
+        except:
+            pass
+    
     extra_artifacts = {artifact.split(':')[0]: artifact.split(':')[1] for artifact in args.extra_artifacts}
     external_modules = [
         ExternalModule(Path(__file__).parent / './smali_generator',
