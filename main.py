@@ -258,14 +258,14 @@ def main():
         if args.edit_manifest:
             print(f'')
             print(f'[+] Applying manifest modifications to final APK...')
-            if modify_manifest_in_apk(args.output, 'com.whatsapp2'):
+            if modify_manifest_in_apk(args.output, 'com.whatsap2'):
                 print(f'[✓] Manifest modified successfully!')
             else:
                 print(f'[-] Warning: Could not modify manifest in final APK')
     
     print(f'')
     if args.edit_manifest:
-        print(f'[+] Patching completed with edited manifest (com.whatsapp2)!')
+        print(f'[+] Patching completed with edited manifest (com.whatsap2)!')
     else:
         print(f'[+] Patching completed!')
 
